@@ -20,13 +20,13 @@ import com.google.gson.GsonBuilder;
 public class MonitorProcessor {
   private final BaseFritzBox fritzBox;
   private final long timeout;
-  
+
   public MonitorProcessor(String url, String username, String password, long timeout) {
     this.fritzBox = new BaseFritzBox(url, username, password);
     this.timeout = timeout;
-    
+
   }
-  
+
   public void processMonitor() {
     while (true) {
       FritzBoxSession session = fritzBox.login();
@@ -41,20 +41,20 @@ public class MonitorProcessor {
           Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd HH:mm:ss").create();
           Spectrum spectrum = gson.fromJson(response, Spectrum.class);
           String statsResponse = session.getResponse("/internet/dsl_stats_tab.lua","?update=mainDiv&useajax=1&xhr=1");
-          
+
           Document stats = Jsoup.parse(statsResponse);
           DSLStats dslStats = parseDocument(stats);
-          
+
           Us us = spectrum.getPort().get(0).getUs();
           us.setDslStats(dslStats);
           //      gson.toJson(spectrum);
           String json = gson.toJson(us);
           if (!last.equals(json)) {
             last = json;
-            
+
             Calendar now = Calendar.getInstance();
             us.setDate(now.getTime());
-            
+
             if (lastDate==null ||
                 lastDate.get(Calendar.DAY_OF_YEAR)!=now.get(Calendar.DAY_OF_YEAR)) {
               if (ps!=null) {
@@ -62,11 +62,11 @@ public class MonitorProcessor {
               }
               ps = new PrintStream(new FileOutputStream("DSL-"+dateFormat.format(now.getTime())+".json", true));
             }
-            
+
             ps.println(gson.toJson(us));
             ps.flush();
           }
-
+          
           Thread.sleep(currentTimeMillis-System.currentTimeMillis());
         }
       } catch (Exception e) {
@@ -77,7 +77,7 @@ public class MonitorProcessor {
       } catch (InterruptedException e) {}
     }
   }
-  
+
   private DSLStats parseDocument(Document stats) {
     DSLStats dslStats = new DSLStats();
     Elements trs = stats.getElementsByTag("tr");
@@ -86,7 +86,7 @@ public class MonitorProcessor {
       if (headers!=null && !headers.isEmpty()) {
         Element td = headers.get(0);
         String val = td.text();
-        
+
         switch (val) {
           case "DSLAM-Datenrate Max.":
             dslStats.setMaxSendDataRate(Integer.parseInt(tr.getElementsByClass("c3").get(0).text()));
@@ -131,20 +131,20 @@ public class MonitorProcessor {
             dslStats.setEsErrorsSwitch(Integer.parseInt(tr.getElementsByClass("c2").get(0).text()));
             dslStats.setSesErrorsSwitch(Integer.parseInt(tr.getElementsByClass("c3").get(0).text()));
             break;
-            
+
           default:
             break;
         }
       }
-      
 
+      
     }
-    
+
     return dslStats;
   }
-  
-  
-  
+
+
+
   public static void main(String[] args) {
     String password = null;
     String url = "http://fritz.box";
@@ -177,7 +177,7 @@ public class MonitorProcessor {
       }
     }
     if (valid) {
-      new MonitorProcessor(url, user, password, timeout).processMonitor();
+      new MonitorProcessor(url, user, password, timeout*1000L).processMonitor();
     } else {
       System.out.println("Usage: MonitorProcessor [-h url] [-u user] -p password [-t timeout (sec.)]");
     }
